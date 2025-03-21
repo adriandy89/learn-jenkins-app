@@ -1,0 +1,10 @@
+pipeline {
+    agent any
+    stages {
+        stage('Check Docker') {
+            steps {
+                echo 'Hello Docker'
+            }
+        }
+    }
+}
