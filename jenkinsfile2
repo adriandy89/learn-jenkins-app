@@ -13,7 +13,7 @@ pipeline {
             steps {
                 // Usamos SSH para conectarnos al servidor y desplegar
                 sshagent(credentials: ['ubuntu-server-key']) {
-                    echo 'Log test ...'
+                    echo 'Log test ... 2'
                     // Reemplaza "ubuntu@IP_O_DOMINIO" con tu usuario y host reales
                     sh """
                         ssh -o StrictHostKeyChecking=no ubuntu@212.227.194.20 '
