@@ -1,0 +1,29 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Checkout') {
+            steps {
+                // Clonamos el repositorio en la workspace de Jenkins
+                git branch: 'main', url: 'https://github.com/adriandy89/learn-jenkins-app.git'
+            }
+        }
+
+        stage('Deploy to Remote') {
+            steps {
+                // Usamos SSH para conectarnos al servidor y desplegar
+                sshagent(credentials: ['ubuntu-server-key']) {
+                    echo 'Log test ...'
+                    // Reemplaza "ubuntu@IP_O_DOMINIO" con tu usuario y host reales
+                    sh """
+                        ssh -o StrictHostKeyChecking=no ubuntu@212.227.194.20 '
+                            cd /home/ubuntu/mi-app/ && \
+                            git pull origin main && \
+                            docker-compose up -d --build
+                        '
+                    """
+                }
+            }
+        }
+    }
+}
