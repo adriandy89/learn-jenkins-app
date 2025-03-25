@@ -1,0 +1,15 @@
+version: "3.7"
+
+name: anukys-test-app
+
+services:
+  test-app:
+    container_name: test-app
+    build:
+      dockerfile: Dockerfile
+      context: .
+
+networks:
+  default:
+    external: true
+    name: anukys
