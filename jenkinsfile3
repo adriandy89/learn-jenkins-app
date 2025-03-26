@@ -2,24 +2,9 @@ pipeline {
     agent any
 
     stages {
-        stage('Validate Build Reference') {
+        stage('Checkout') {
             steps {
-                script {
-                    // Check if we're building a tag
-                    if (buildingTag()) {
-                        echo "Detected a tag: ${env.TAG_NAME ?: env.BRANCH_NAME}"
-                        // Validate if it's a develop tag
-                        if ((env.TAG_NAME ?: env.BRANCH_NAME)?.startsWith("develop-")) {
-                            echo "Valid develop tag detected, continuing pipeline"
-                        } else {
-                            error "This pipeline only runs for 'develop-*' tags. Stopping execution."
-                        }
-                    } else {
-                        echo "Not a tag, checking branch name..."
-                        // You can add branch validation here if needed
-                        echo "Building from branch: ${env.BRANCH_NAME}"
-                    }
-                }
+                checkout scmGit(branches: [[name: 'refs/tags/develop-*']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/adriandy89/learn-jenkins-app.git']])
             }
         }
 
@@ -28,9 +13,9 @@ pipeline {
                 echo "Estamos construyendo la referencia: ${env.BRANCH_NAME}"
                 script {
                     if (buildingTag()) {
-                        echo "Es un TAG: ${env.TAG_NAME ?: env.BRANCH_NAME}"
+                        echo "Es un TAG"
                     } else {
-                        echo "Es una rama (branch): ${env.BRANCH_NAME}"
+                        echo "Es una rama (branch)"
                     }
                 }
             }
@@ -40,12 +25,11 @@ pipeline {
             steps {
                 script {
                     if (buildingTag()) {
-                        def tagName = env.TAG_NAME ?: env.BRANCH_NAME
-                        if (tagName.startsWith("develop-")) {
-                            echo "Desplegando un tag de desarrollo: ${tagName}"
+                        if (env.BRANCH_NAME.startsWith("develop-")) {
+                            echo "Desplegando un tag de desarrollo: ${env.BRANCH_NAME}"
                             // Aquí pones tus pasos para 'develop-'
-                        } else if (tagName.startsWith("production-")) {
-                            echo "Desplegando un tag de producción: ${tagName}"
+                        } else if (env.BRANCH_NAME.startsWith("production-")) {
+                            echo "Desplegando un tag de producción: ${env.BRANCH_NAME}"
                             // Aquí pones tus pasos para 'production-'
                         } else {
                             echo "Es un tag, pero no empieza con develop- ni production-"
@@ -55,15 +39,6 @@ pipeline {
                     }
                 }
             }
-        }
-    }
-
-    post {
-        failure {
-            echo "Build failed! Check the logs for more information."
-        }
-        success {
-            echo "Build completed successfully!"
         }
     }
 }
