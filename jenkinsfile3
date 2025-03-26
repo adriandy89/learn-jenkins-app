@@ -4,13 +4,13 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                checkout scmGit(branches: [[name: '*/develop-*']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/adriandy89/learn-jenkins-app.git']])
+                checkout scmGit(branches: [[name: 'refs/tags/develop-*']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/adriandy89/learn-jenkins-app.git']])
             }
         }
 
         stage('Info') {
             steps {
-                echo "Estamos construyendo la referencia: ${env.BRANCH_NAME} "
+                echo "Estamos construyendo la referencia: ${env.BRANCH_NAME}"
                 script {
                     if (buildingTag()) {
                         echo "Es un TAG"
