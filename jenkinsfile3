@@ -8,9 +8,29 @@ pipeline {
             }
         }
 
+        stage('Validate Build Type') {
+            steps {
+                script {
+                    def tagName = env.TAG_NAME ?: env.BRANCH_NAME
+                    
+                    echo "Current reference: ${tagName}"
+                    
+                    if (tagName == null) {
+                        error "No valid tag or branch detected. Aborting pipeline."
+                    }
+                    
+                    if (!buildingTag() || !tagName.toString().startsWith("develop-")) {
+                        error "This pipeline only runs for 'develop-*' tags. Stopping execution."
+                    }
+                    
+                    echo "Valid develop-* tag detected. Continuing with pipeline."
+                }
+            }
+        }
+
         stage('Info') {
             steps {
-                echo "Estamos construyendo la referencia: ${env.BRANCH_NAME}"
+                echo "Estamos construyendo la referencia: ${env.TAG_NAME ?: env.BRANCH_NAME}"
                 script {
                     if (buildingTag()) {
                         echo "Es un TAG"
@@ -24,12 +44,14 @@ pipeline {
         stage('Deploy segun tipo') {
             steps {
                 script {
+                    def tagName = env.TAG_NAME ?: env.BRANCH_NAME
+                    
                     if (buildingTag()) {
-                        if (env.BRANCH_NAME.startsWith("develop-")) {
-                            echo "Desplegando un tag de desarrollo: ${env.BRANCH_NAME}"
+                        if (tagName?.startsWith("develop-")) {
+                            echo "Desplegando un tag de desarrollo: ${tagName}"
                             // Aquí pones tus pasos para 'develop-'
-                        } else if (env.BRANCH_NAME.startsWith("production-")) {
-                            echo "Desplegando un tag de producción: ${env.BRANCH_NAME}"
+                        } else if (tagName?.startsWith("production-")) {
+                            echo "Desplegando un tag de producción: ${tagName}"
                             // Aquí pones tus pasos para 'production-'
                         } else {
                             echo "Es un tag, pero no empieza con develop- ni production-"
@@ -39,6 +61,15 @@ pipeline {
                     }
                 }
             }
+        }
+    }
+
+    post {
+        failure {
+            echo "Build failed! Check the logs for more information."
+        }
+        success {
+            echo "Build completed successfully!"
         }
     }
 }
