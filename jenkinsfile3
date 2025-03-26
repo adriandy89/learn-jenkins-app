@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     stages {
-        stage('Validate Build Reference ') {
+        stage('Validate Build Reference') {
             steps {
                 script {
                     // Check if we're building a tag
