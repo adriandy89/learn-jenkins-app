@@ -1,36 +1,52 @@
 pipeline {
     agent any
     
-    // Remove automatic triggers to prevent unwanted builds
-    // triggers {
-    //    pollSCM('H/5 * * * *')
-    // }
-
     options {
         buildDiscarder(logRotator(numToKeepStr: '5'))
     }
 
     stages {
-        stage('Validate Tag') {
+        stage('Extract Tag Info') {
             steps {
                 script {
-                    // Get the GIT_BRANCH environment variable which includes the tag
-                    def gitRef = env.GIT_BRANCH ?: ""
-                    echo "Git Ref: ${gitRef}"
+                    // Debug info
+                    echo "JENKINS_URL: ${env.JENKINS_URL}"
+                    echo "BUILD_URL: ${env.BUILD_URL}"
+                    echo "JOB_NAME: ${env.JOB_NAME}"
+                    echo "BUILD_TAG: ${env.BUILD_TAG}"
                     
-                    // Check if it's a tag and specifically a develop-* tag
-                    if (!gitRef.startsWith('origin/tags/develop-') && !gitRef.startsWith('refs/tags/develop-')) {
-                        currentBuild.result = 'ABORTED'
-                        error "This pipeline only runs for 'develop-*' tags. Aborting build. (Found ref: ${gitRef})"
+                    // Add git command to show the current state
+                    sh "git branch -a"
+                    sh "git tag -l"
+                    
+                    // Get the commit we're building
+                    def gitCommit = sh(script: "git rev-parse HEAD", returnStdout: true).trim()
+                    echo "Current commit: ${gitCommit}"
+                    
+                    // Find tags pointing to this commit
+                    def allTags = sh(script: "git tag --points-at ${gitCommit}", returnStdout: true).trim()
+                    echo "All tags on this commit: ${allTags}"
+                    
+                    // Now check if any of the tags start with 'develop-'
+                    def hasDevTag = false
+                    def developTag = ""
+                    
+                    allTags.split('\n').each { tag ->
+                        if (tag.startsWith('develop-')) {
+                            hasDevTag = true
+                            developTag = tag
+                        }
                     }
                     
-                    // Extract just the tag name from the full ref
-                    def tagName = gitRef.replaceAll('origin/tags/develop-', 'develop-')
-                                       .replaceAll('refs/tags/develop-', 'develop-')
+                    // If no develop tag was found, abort
+                    if (!hasDevTag) {
+                        currentBuild.result = 'ABORTED'
+                        error "This pipeline only runs for 'develop-*' tags. No such tag found on the current commit."
+                    }
                     
-                    // Store tag name for later use
-                    env.GIT_TAG = tagName
-                    echo "Running for tag: ${env.GIT_TAG}"
+                    // Store the tag for later use
+                    env.GIT_TAG = developTag
+                    echo "Valid develop tag found: ${env.GIT_TAG}"
                 }
             }
         }
