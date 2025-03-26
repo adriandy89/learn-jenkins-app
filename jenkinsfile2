@@ -2,23 +2,20 @@ pipeline {
     agent any
 
     stages {
-        stage('Checkout') {
+        stage('Build') {
             steps {
-                // Clonamos el repositorio en la workspace de Jenkins
-                git branch: 'main', url: 'https://github.com/adriandy89/learn-jenkins-app.git'
+                echo "Building from tag: ${env.GIT_BRANCH}"
+                // Aquí haces tu build, test, etc.
             }
         }
 
         stage('Deploy to Remote') {
             steps {
-                // Usamos SSH para conectarnos al servidor y desplegar
                 sshagent(credentials: ['ubuntu-server-key']) {
-                    echo 'Log test ... 2'
-                    // Reemplaza "ubuntu@IP_O_DOMINIO" con tu usuario y host reales
                     sh """
                         ssh -o StrictHostKeyChecking=no ubuntu@212.227.194.20 '
                             cd /home/ubuntu/apps/test-app/ && \
-                            git -C learn-jenkins-app pull origin main && \
+                            git -C learn-jenkins-app pull origin ${env.GIT_BRANCH} && \
                             docker compose up -d --build --force-recreate --no-deps && \
                             docker image prune -af --filter "until=24h" && \
                             docker image ls -q -f "dangling=true" | xargs -r docker rmi
