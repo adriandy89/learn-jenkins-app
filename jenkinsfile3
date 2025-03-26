@@ -2,11 +2,11 @@ pipeline {
     agent any
 
     stages {
-        // stage('Checkout') {
-        //     steps {
-        //         checkout scmGit(branches: [[name: '*/develop-*']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/adriandy89/learn-jenkins-app.git']])
-        //     }
-        // }
+        stage('Checkout') {
+            steps {
+                checkout scmGit(branches: [[name: '*/develop-*']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/adriandy89/learn-jenkins-app.git']])
+            }
+        }
 
         stage('Info') {
             steps {
