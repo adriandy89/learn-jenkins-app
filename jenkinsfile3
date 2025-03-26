@@ -1,42 +1,37 @@
 pipeline {
     agent any
 
-    environment {
-        IS_TAG = sh(script: "git describe --exact-match --tags HEAD || echo ''", returnStdout: true).trim()
-    }
-
     stages {
-        stage('Validar tag') {
+        stage('Info') {
             steps {
+                echo "Estamos construyendo la referencia: ${env.BRANCH_NAME}"
                 script {
-                    if (env.IS_TAG == '') {
-                        echo "No es un tag, omitiendo ejecución"
-                        currentBuild.result = 'NOT_BUILT'
-                        error("Este commit no es un tag.")
+                    if (buildingTag()) {
+                        echo "Es un TAG"
+                    } else {
+                        echo "Es una rama (branch)"
                     }
-
-                    if (!env.IS_TAG.startsWith('develop-')) {
-                        echo "El tag '${env.IS_TAG}' no empieza con develop-"
-                        currentBuild.result = 'NOT_BUILT'
-                        error("No es un tag válido para deploy")
-                    }
-
-                    echo "Tag válido: ${env.IS_TAG}"
                 }
             }
         }
 
-        stage('Build') {
+        stage('Deploy segun tipo') {
             steps {
-                echo "Build con tag ${env.IS_TAG} "
-                // Tu lógica de build aquí
-            }
-        }
-
-        stage('Deploy') {
-            steps {
-                echo "Desplegando para tag ${env.IS_TAG}"
-                // Tu despliegue aquí
+                script {
+                    if (buildingTag()) {
+                        if (env.BRANCH_NAME.startsWith("develop-")) {
+                            echo "Desplegando un tag de desarrollo: ${env.BRANCH_NAME}"
+                            // Aquí pones tus pasos para 'develop-'
+                        } else if (env.BRANCH_NAME.startsWith("production-")) {
+                            echo "Desplegando un tag de producción: ${env.BRANCH_NAME}"
+                            // Aquí pones tus pasos para 'production-'
+                        } else {
+                            echo "Es un tag, pero no empieza con develop- ni production-"
+                        }
+                    } else {
+                        echo "Es una rama, no un tag. Comportamiento diferente (si lo deseas)."
+                    }
+                }
             }
         }
     }
