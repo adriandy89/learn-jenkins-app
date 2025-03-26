@@ -7,28 +7,64 @@ pipeline {
     }
 
     stages {
+        stage('Check Tag Parameter') {
+            steps {
+                script {
+                    // Check if TAG_NAME parameter exists
+                    echo "Checking for TAG_NAME parameter"
+                    if (params.TAG_NAME) {
+                        echo "Found TAG_NAME parameter: ${params.TAG_NAME}"
+                        env.GIT_TAG = params.TAG_NAME
+                    } else {
+                        echo "No TAG_NAME parameter found, will check Git tags"
+                    }
+                }
+            }
+        }
+
         stage('Checkout') {
             steps {
-                // Custom checkout specifically using main branch
-                checkout([
-                    $class: 'GitSCM',
-                    branches: [[name: 'refs/heads/main']],  // Always use main branch
-                    extensions: [
-                        [$class: 'CloneOption', noTags: false, shallow: false, depth: 0, reference: '']
-                    ],
-                    userRemoteConfigs: [[
-                        url: 'https://github.com/adriandy89/learn-jenkins-app.git',
-                        refspec: '+refs/heads/main:refs/remotes/origin/main +refs/tags/*:refs/tags/*'  // Get main branch and all tags
-                    ]]
-                ])
-                
-                // Fetch tags explicitly
-                sh "git fetch --tags"
-                sh "git tag -l"
+                script {
+                    // If we have a TAG_NAME parameter, check out that specific tag
+                    if (env.GIT_TAG) {
+                        echo "Checking out specific tag: ${env.GIT_TAG}"
+                        checkout([
+                            $class: 'GitSCM',
+                            branches: [[name: "refs/tags/${env.GIT_TAG}"]],
+                            extensions: [
+                                [$class: 'CloneOption', noTags: false, shallow: false, depth: 0, reference: '']
+                            ],
+                            userRemoteConfigs: [[
+                                url: 'https://github.com/adriandy89/learn-jenkins-app.git'
+                            ]]
+                        ])
+                    } else {
+                        // Otherwise check out main and look for tags
+                        echo "Checking out main branch and looking for tags"
+                        checkout([
+                            $class: 'GitSCM',
+                            branches: [[name: 'refs/heads/main']],
+                            extensions: [
+                                [$class: 'CloneOption', noTags: false, shallow: false, depth: 0, reference: '']
+                            ],
+                            userRemoteConfigs: [[
+                                url: 'https://github.com/adriandy89/learn-jenkins-app.git',
+                                refspec: '+refs/heads/main:refs/remotes/origin/main +refs/tags/*:refs/tags/*'
+                            ]]
+                        ])
+                    }
+                    
+                    // Fetch tags explicitly
+                    sh "git fetch --tags"
+                    sh "git tag -l"
+                }
             }
         }
         
-        stage('Extract Tag Info ') {
+        stage('Extract Tag Info') {
+            when {
+                expression { !env.GIT_TAG }
+            }
             steps {
                 script {
                     // Debug info
@@ -36,13 +72,6 @@ pipeline {
                     echo "BUILD_URL: ${env.BUILD_URL}"
                     echo "JOB_NAME: ${env.JOB_NAME}"
                     echo "BUILD_TAG: ${env.BUILD_TAG}"
-                    
-                    // Confirm we're on main branch
-                    sh "git checkout main"
-                    
-                    // Show current state for debugging
-                    sh "git branch -a"
-                    sh "git tag -l"
                     
                     // Get the commit we're building
                     def gitCommit = sh(script: "git rev-parse HEAD", returnStdout: true).trim()
@@ -78,17 +107,44 @@ pipeline {
             }
         }
 
-        stage('Info') {
+        stage('Validate Tag Format') {
             steps {
-                echo "Estamos construyendo el tag: ${env.GIT_TAG}"
+                script {
+                    // Ensure we have a GIT_TAG and validate its format
+                    if (!env.GIT_TAG) {
+                        error "No tag was found or specified"
+                    }
+                    
+                    if (!env.GIT_TAG.startsWith('develop-')) {
+                        error "This pipeline only runs for 'develop-*' tags. Found: ${env.GIT_TAG}"
+                    }
+                    
+                    echo "Validated tag format: ${env.GIT_TAG}"
+                }
             }
         }
 
-        stage('Deploy') {
+        stage('Build') {
             steps {
-                script {
-                    echo "Desplegando un tag de desarrollo: ${env.GIT_TAG}"
-                    // Aquí pones tus pasos para 'develop-'
+                echo "Building from tag: ${env.GIT_TAG}"
+                // Aquí haces tu build, test, etc.
+            }
+        }
+
+        stage('Deploy to Remote') {
+            steps {
+                echo "Deploying to remote server using tag: ${env.GIT_TAG}"
+                sshagent(credentials: ['ubuntu-server-key']) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no ubuntu@212.227.194.20 '
+                            cd /home/ubuntu/apps/test-app/ && \
+                            git -C learn-jenkins-app fetch --all --tags && \
+                            git -C learn-jenkins-app checkout ${env.GIT_TAG} && \
+                            docker compose up -d --build --force-recreate --no-deps && \
+                            docker image prune -af --filter "until=24h" && \
+                            docker image ls -q -f "dangling=true" | xargs -r docker rmi
+                        '
+                    """
                 }
             }
         }
@@ -102,7 +158,7 @@ pipeline {
             echo "Build failed! Check the logs for more information."
         }
         success {
-            echo "Build completed successfully!"
+            echo "Build completed successfully for tag: ${env.GIT_TAG}"
         }
     }
 }
