@@ -11,7 +11,7 @@ pipeline {
 
         stage('Deploy to Remote') {
             steps {
-                echo "Deploying to remote server"
+                echo "Deploying to remote server 1"
                 sshagent(credentials: ['ubuntu-server-key']) {
                     sh """
                         ssh -o StrictHostKeyChecking=no ubuntu@212.227.194.20 '
