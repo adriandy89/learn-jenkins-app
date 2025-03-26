@@ -1,21 +1,35 @@
 pipeline {
     agent any
+
     stages {
-        stage('Check') {
+        stage('Info') {
+            steps {
+                echo "Estamos construyendo la referencia: ${env.BRANCH_NAME}"
+                script {
+                    if (buildingTag()) {
+                        echo "Es un TAG"
+                    } else {
+                        echo "Es una rama (branch)"
+                    }
+                }
+            }
+        }
+
+        stage('Deploy segun tipo') {
             steps {
                 script {
                     if (buildingTag()) {
-                        echo "Esto es un tag: ${env.BRANCH_NAME}"
-
-                        if (env.BRANCH_NAME.startsWith('develop-')) {
-                            echo "Despliegue para develop"
-                            // ...
-                        } else if (env.BRANCH_NAME.startsWith('production-')) {
-                            echo "Despliegue para producción"
-                            // ...
+                        if (env.BRANCH_NAME.startsWith("develop-")) {
+                            echo "Desplegando un tag de desarrollo: ${env.BRANCH_NAME}"
+                            // Aquí pones tus pasos para 'develop-'
+                        } else if (env.BRANCH_NAME.startsWith("production-")) {
+                            echo "Desplegando un tag de producción: ${env.BRANCH_NAME}"
+                            // Aquí pones tus pasos para 'production-'
+                        } else {
+                            echo "Es un tag, pero no empieza con develop- ni production-"
                         }
                     } else {
-                        echo "Es una rama (no un tag)."
+                        echo "Es una rama, no un tag. Comportamiento diferente (si lo deseas)."
                     }
                 }
             }
