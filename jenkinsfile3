@@ -6,7 +6,7 @@ pipeline {
     }
 
     stages {
-        stage('Extract Tag Info') {
+        stage('Extract Tag Info ') {
             steps {
                 script {
                     // Debug info
