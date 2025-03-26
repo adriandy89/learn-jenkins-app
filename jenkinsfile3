@@ -10,7 +10,7 @@ pipeline {
 
         stage('Info') {
             steps {
-                echo "Estamos construyendo la referencia: ${env.BRANCH_NAME}"
+                echo "Estamos construyendo la referencia: ${env.BRANCH_NAME} "
                 script {
                     if (buildingTag()) {
                         echo "Es un TAG"
