@@ -3,9 +3,32 @@ pipeline {
     
     options {
         buildDiscarder(logRotator(numToKeepStr: '5'))
+        skipDefaultCheckout(true)  // Skip the default checkout
     }
 
     stages {
+        stage('Checkout') {
+            steps {
+                // Custom checkout to properly handle tags
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: 'FETCH_HEAD']],  // Use FETCH_HEAD to get whatever reference was triggered
+                    extensions: [
+                        [$class: 'CloneOption', noTags: false, shallow: false, depth: 0, reference: ''],
+                        [$class: 'LocalBranch', localBranch: '**']
+                    ],
+                    userRemoteConfigs: [[
+                        url: 'https://github.com/adriandy89/learn-jenkins-app.git',
+                        refspec: '+refs/tags/*:refs/remotes/origin/tags/*'  // Proper refspec for tags
+                    ]]
+                ])
+                
+                // Fetch tags explicitly
+                sh "git fetch --tags"
+                sh "git tag -l"
+            }
+        }
+        
         stage('Extract Tag Info') {
             steps {
                 script {
