@@ -9,17 +9,16 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                // Custom checkout to properly handle tags
+                // Custom checkout specifically using main branch
                 checkout([
                     $class: 'GitSCM',
-                    branches: [[name: 'FETCH_HEAD']],  // Use FETCH_HEAD to get whatever reference was triggered
+                    branches: [[name: 'refs/heads/main']],  // Always use main branch
                     extensions: [
-                        [$class: 'CloneOption', noTags: false, shallow: false, depth: 0, reference: ''],
-                        [$class: 'LocalBranch', localBranch: '**']
+                        [$class: 'CloneOption', noTags: false, shallow: false, depth: 0, reference: '']
                     ],
                     userRemoteConfigs: [[
                         url: 'https://github.com/adriandy89/learn-jenkins-app.git',
-                        refspec: '+refs/tags/*:refs/remotes/origin/tags/*'  // Proper refspec for tags
+                        refspec: '+refs/heads/main:refs/remotes/origin/main +refs/tags/*:refs/tags/*'  // Get main branch and all tags
                     ]]
                 ])
                 
@@ -38,7 +37,10 @@ pipeline {
                     echo "JOB_NAME: ${env.JOB_NAME}"
                     echo "BUILD_TAG: ${env.BUILD_TAG}"
                     
-                    // Add git command to show the current state
+                    // Confirm we're on main branch
+                    sh "git checkout main"
+                    
+                    // Show current state for debugging
                     sh "git branch -a"
                     sh "git tag -l"
                     
@@ -54,10 +56,12 @@ pipeline {
                     def hasDevTag = false
                     def developTag = ""
                     
-                    allTags.split('\n').each { tag ->
-                        if (tag.startsWith('develop-')) {
-                            hasDevTag = true
-                            developTag = tag
+                    if (allTags) {
+                        allTags.split('\n').each { tag ->
+                            if (tag.startsWith('develop-')) {
+                                hasDevTag = true
+                                developTag = tag
+                            }
                         }
                     }
                     
