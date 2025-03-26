@@ -26,7 +26,7 @@ pipeline {
                 script {
                     if (buildingTag()) {
                         if (env.BRANCH_NAME.startsWith("develop-")) {
-                            echo "Desplegando un tag de desarrollo: ${env.BRANCH_NAME}"
+                            echo "Desplegando un tag de desarrollo: ${env.BRANCH_NAME} "
                             // Aquí pones tus pasos para 'develop-'
                         } else if (env.BRANCH_NAME.startsWith("production-")) {
                             echo "Desplegando un tag de producción: ${env.BRANCH_NAME}"
