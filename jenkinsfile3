@@ -11,7 +11,7 @@ pipeline {
             steps {
                 script {
                     // Check if TAG_NAME parameter exists
-                    echo "Checking for TAG_NAME parameter"
+                    echo "Checking for TAG_NAME parameter "
                     if (params.TAG_NAME) {
                         echo "Found TAG_NAME parameter: ${params.TAG_NAME}"
                         env.GIT_TAG = params.TAG_NAME
