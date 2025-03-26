@@ -4,60 +4,65 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                checkout scmGit(branches: [[name: 'refs/tags/develop-*']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/adriandy89/learn-jenkins-app.git']])
+                // Use a more standard checkout approach that works better with tags
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: '*/develop-*']],
+                    extensions: [[$class: 'CloneOption', noTags: false, shallow: false, depth: 0, reference: '']],
+                    userRemoteConfigs: [[url: 'https://github.com/adriandy89/learn-jenkins-app.git']]
+                ])
+                
+                // Print Git info for debugging
+                sh "git tag -l"
+                sh "git branch -a"
+                sh "git rev-parse HEAD"
             }
         }
 
-        stage('Validate Build Type') {
+        stage('Detect Tag/Branch') {
             steps {
                 script {
-                    def tagName = env.TAG_NAME ?: env.BRANCH_NAME
+                    // Determine if we're on a tag by trying to get tag name from git
+                    sh(script: "git describe --tags --exact-match HEAD || echo 'Not a tag'", returnStdout: true).trim()
                     
-                    echo "Current reference: ${tagName}"
+                    // Check if we've got a tag
+                    def gitTag = sh(script: "git describe --tags --exact-match HEAD 2>/dev/null || echo ''", returnStdout: true).trim()
+                    env.GIT_TAG = gitTag
                     
-                    if (tagName == null) {
-                        error "No valid tag or branch detected. Aborting pipeline."
+                    echo "Detected Git tag: ${env.GIT_TAG}"
+                    
+                    if (!gitTag) {
+                        error "This pipeline only runs for 'develop-*' tags. No tag detected."
                     }
                     
-                    if (!buildingTag() || !tagName.toString().startsWith("develop-")) {
-                        error "This pipeline only runs for 'develop-*' tags. Stopping execution."
+                    if (!gitTag.startsWith("develop-")) {
+                        error "This pipeline only runs for 'develop-*' tags. Found: ${gitTag}"
                     }
                     
-                    echo "Valid develop-* tag detected. Continuing with pipeline."
+                    echo "Valid develop-* tag detected: ${gitTag}. Continuing with pipeline."
                 }
             }
         }
 
         stage('Info') {
             steps {
-                echo "Estamos construyendo la referencia: ${env.TAG_NAME ?: env.BRANCH_NAME}"
-                script {
-                    if (buildingTag()) {
-                        echo "Es un TAG"
-                    } else {
-                        echo "Es una rama (branch)"
-                    }
-                }
+                echo "Estamos construyendo el tag: ${env.GIT_TAG}"
             }
         }
 
         stage('Deploy segun tipo') {
             steps {
                 script {
-                    def tagName = env.TAG_NAME ?: env.BRANCH_NAME
+                    def tagName = env.GIT_TAG
                     
-                    if (buildingTag()) {
-                        if (tagName?.startsWith("develop-")) {
-                            echo "Desplegando un tag de desarrollo: ${tagName}"
-                            // Aquí pones tus pasos para 'develop-'
-                        } else if (tagName?.startsWith("production-")) {
-                            echo "Desplegando un tag de producción: ${tagName}"
-                            // Aquí pones tus pasos para 'production-'
-                        } else {
-                            echo "Es un tag, pero no empieza con develop- ni production-"
-                        }
+                    if (tagName?.startsWith("develop-")) {
+                        echo "Desplegando un tag de desarrollo: ${tagName}"
+                        // Aquí pones tus pasos para 'develop-'
+                    } else if (tagName?.startsWith("production-")) {
+                        echo "Desplegando un tag de producción: ${tagName}"
+                        // Aquí pones tus pasos para 'production-'
                     } else {
-                        echo "Es una rama, no un tag. Comportamiento diferente (si lo deseas)."
+                        echo "Es un tag, pero no empieza con develop- ni production-"
                     }
                 }
             }
