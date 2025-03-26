@@ -1,68 +1,36 @@
 pipeline {
     agent any
     
-    triggers {
-        pollSCM('H/5 * * * *')
-    }
+    // Remove automatic triggers to prevent unwanted builds
+    // triggers {
+    //    pollSCM('H/5 * * * *')
+    // }
 
     options {
         buildDiscarder(logRotator(numToKeepStr: '5'))
-        skipDefaultCheckout()
     }
 
     stages {
-        stage('Checkout with Tags') {
-            steps {
-                // Explicit checkout with tag fetch
-                checkout([
-                    $class: 'GitSCM',
-                    branches: [[name: 'FETCH_HEAD']],
-                    extensions: [
-                        [$class: 'CloneOption', noTags: false, shallow: false, depth: 0, reference: ''],
-                        [$class: 'PruneStaleBranch'],
-                        [$class: 'CleanBeforeCheckout']
-                    ],
-                    userRemoteConfigs: [[
-                        url: 'https://github.com/adriandy89/learn-jenkins-app.git',
-                        refspec: '+refs/tags/develop-*:refs/remotes/origin/tags/develop-*'
-                    ]]
-                ])
-                
-                // Fetch all tags explicitly
-                sh "git fetch --tags"
-                sh "git tag -l"
-            }
-        }
-        
-        stage('Validate Build Trigger') {
+        stage('Validate Tag') {
             steps {
                 script {
-                    // Get tag information with extra debugging
-                    def gitCommit = sh(script: "git rev-parse HEAD", returnStdout: true).trim()
-                    echo "Current commit: ${gitCommit}"
+                    // Get the GIT_BRANCH environment variable which includes the tag
+                    def gitRef = env.GIT_BRANCH ?: ""
+                    echo "Git Ref: ${gitRef}"
                     
-                    // List all available tags for debugging
-                    sh "git tag -l"
-                    
-                    // Direct tag detection
-                    def gitTag = sh(script: "git tag --points-at ${gitCommit} | grep 'develop-' || echo ''", returnStdout: true).trim()
-                    echo "Tags on this commit: ${gitTag}"
-                    
-                    // Try alternate tag detection if the first method failed
-                    if (!gitTag) {
-                        echo "No tag found with first method, trying alternate detection..."
-                        gitTag = sh(script: "git describe --tags --exact-match 2>/dev/null || echo ''", returnStdout: true).trim()
-                        echo "Tags from alternate method: ${gitTag}"
-                    }
-                    
-                    // Stop the pipeline if not building a develop-* tag
-                    if (!gitTag || !gitTag.startsWith('develop-')) {
+                    // Check if it's a tag and specifically a develop-* tag
+                    if (!gitRef.startsWith('origin/tags/develop-') && !gitRef.startsWith('refs/tags/develop-')) {
                         currentBuild.result = 'ABORTED'
-                        error "This pipeline only runs for 'develop-*' tags. Aborting build."
+                        error "This pipeline only runs for 'develop-*' tags. Aborting build. (Found ref: ${gitRef})"
                     }
                     
-                    // Store tag info for later use
-                    env.GIT_TAG = gitTag
+                    // Extract just the tag name from the full ref
+                    def tagName = gitRef.replaceAll('origin/tags/develop-', 'develop-')
+                                       .replaceAll('refs/tags/develop-', 'develop-')
+                    
+                    // Store tag name for later use
+                    env.GIT_TAG = tagName
+                    echo "Running for tag: ${env.GIT_TAG}"
                 }
             }
         }
