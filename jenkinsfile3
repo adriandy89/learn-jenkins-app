@@ -1,45 +1,30 @@
 pipeline {
     agent any
+    
+    // Only run this pipeline for develop-* tags
+    triggers {
+        // This is intentionally empty to disable automatic triggering
+    }
 
     stages {
-        stage('Checkout') {
-            steps {
-                // Use a more standard checkout approach that works better with tags
-                checkout([
-                    $class: 'GitSCM',
-                    branches: [[name: '*/develop-*']],
-                    extensions: [[$class: 'CloneOption', noTags: false, shallow: false, depth: 0, reference: '']],
-                    userRemoteConfigs: [[url: 'https://github.com/adriandy89/learn-jenkins-app.git']]
-                ])
-                
-                // Print Git info for debugging
-                sh "git tag -l"
-                sh "git branch -a"
-                sh "git rev-parse HEAD"
-            }
-        }
-
-        stage('Detect Tag/Branch') {
+        stage('Validate Build Trigger') {
             steps {
                 script {
-                    // Determine if we're on a tag by trying to get tag name from git
-                    sh(script: "git describe --tags --exact-match HEAD || echo 'Not a tag'", returnStdout: true).trim()
+                    // Get tag information regardless of how Jenkins triggered the build
+                    def gitCommit = sh(script: "git rev-parse HEAD", returnStdout: true).trim()
+                    def gitTag = sh(script: "git tag --points-at ${gitCommit} | grep 'develop-' || echo ''", returnStdout: true).trim()
                     
-                    // Check if we've got a tag
-                    def gitTag = sh(script: "git describe --tags --exact-match HEAD 2>/dev/null || echo ''", returnStdout: true).trim()
+                    echo "Current commit: ${gitCommit}"
+                    echo "Tags on this commit: ${gitTag}"
+                    
+                    // Stop the pipeline if not building a develop-* tag
+                    if (!gitTag || !gitTag.startsWith('develop-')) {
+                        currentBuild.result = 'ABORTED'
+                        error "This pipeline only runs for 'develop-*' tags. Aborting build."
+                    }
+                    
+                    // Store tag info for later use
                     env.GIT_TAG = gitTag
-                    
-                    echo "Detected Git tag: ${env.GIT_TAG}"
-                    
-                    if (!gitTag) {
-                        error "This pipeline only runs for 'develop-*' tags. No tag detected."
-                    }
-                    
-                    if (!gitTag.startsWith("develop-")) {
-                        error "This pipeline only runs for 'develop-*' tags. Found: ${gitTag}"
-                    }
-                    
-                    echo "Valid develop-* tag detected: ${gitTag}. Continuing with pipeline."
                 }
             }
         }
@@ -50,26 +35,20 @@ pipeline {
             }
         }
 
-        stage('Deploy segun tipo') {
+        stage('Deploy') {
             steps {
                 script {
-                    def tagName = env.GIT_TAG
-                    
-                    if (tagName?.startsWith("develop-")) {
-                        echo "Desplegando un tag de desarrollo: ${tagName}"
-                        // Aquí pones tus pasos para 'develop-'
-                    } else if (tagName?.startsWith("production-")) {
-                        echo "Desplegando un tag de producción: ${tagName}"
-                        // Aquí pones tus pasos para 'production-'
-                    } else {
-                        echo "Es un tag, pero no empieza con develop- ni production-"
-                    }
+                    echo "Desplegando un tag de desarrollo: ${env.GIT_TAG}"
+                    // Aquí pones tus pasos para 'develop-'
                 }
             }
         }
     }
 
     post {
+        aborted {
+            echo "Build aborted: This pipeline only runs for 'develop-*' tags."
+        }
         failure {
             echo "Build failed! Check the logs for more information."
         }
