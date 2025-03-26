@@ -1,12 +1,27 @@
 pipeline {
     agent any
     
-    // Only run this pipeline for develop-* tags
+    // Using a specific trigger that only activates for tags
     triggers {
-        // This is intentionally empty to disable automatic triggering
+        // Run only when explicitly triggered or by SCM changes matching our tag pattern
+        pollSCM('H/5 * * * *')
+    }
+
+    options {
+        // Discard old builds
+        buildDiscarder(logRotator(numToKeepStr: '5'))
+        // Skip default checkout to handle it in the first stage
+        skipDefaultCheckout()
     }
 
     stages {
+        stage('Checkout') {
+            steps {
+                // Explicit checkout to have more control
+                checkout scm
+            }
+        }
+        
         stage('Validate Build Trigger') {
             steps {
                 script {
