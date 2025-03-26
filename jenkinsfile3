@@ -2,40 +2,41 @@ pipeline {
     agent any
 
     environment {
-        BRANCH_TAG = "${env.GIT_TAG_NAME ?: ''}"
+        IS_TAG = sh(script: "git describe --exact-match --tags HEAD || echo ''", returnStdout: true).trim()
     }
 
     stages {
-        stage('Preparar') {
+        stage('Validar tag') {
             steps {
                 script {
-                    echo "Tag detectado: ${env.GIT_TAG_NAME}"
-                    if (!env.GIT_TAG_NAME?.startsWith("develop-")) {
-                        echo "Este pipeline solo corre para tags que empiezan con develop-"
+                    if (env.IS_TAG == '') {
+                        echo "No es un tag, omitiendo ejecución"
                         currentBuild.result = 'NOT_BUILT'
-                        error("Tag no permitido. Saliendo del pipeline.")
+                        error("Este commit no es un tag.")
                     }
-                }
-            }
-        }
 
-        stage('Clonar código') {
-            steps {
-                checkout scm
+                    if (!env.IS_TAG.startsWith('develop-')) {
+                        echo "El tag '${env.IS_TAG}' no empieza con develop-"
+                        currentBuild.result = 'NOT_BUILT'
+                        error("No es un tag válido para deploy")
+                    }
+
+                    echo "Tag válido: ${env.IS_TAG}"
+                }
             }
         }
 
         stage('Build') {
             steps {
-                echo "Aquí va el proceso de build para el tag ${env.GIT_TAG_NAME}"
-                // Ej: sh 'docker build ...' o lo que uses
+                echo "Build con tag ${env.IS_TAG}"
+                // Tu lógica de build aquí
             }
         }
 
         stage('Deploy') {
             steps {
-                echo "Desplegando en entorno de desarrollo..."
-                // Aquí pones tu lógica de despliegue (Kubernetes, Docker, SSH, etc)
+                echo "Desplegando para tag ${env.IS_TAG}"
+                // Tu despliegue aquí
             }
         }
     }
