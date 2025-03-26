@@ -17,9 +17,12 @@ pipeline {
                     // Reemplaza "ubuntu@IP_O_DOMINIO" con tu usuario y host reales
                     sh """
                         ssh -o StrictHostKeyChecking=no ubuntu@212.227.194.20 '
-                            cd /home/ubuntu/apps/test-app/learn-jenkins-app/ && \
-                            git pull origin main && \
-                            docker compose up -d --build
+                            cd /home/ubuntu/apps/test-app/ && \
+                            git -C learn-jenkins-app pull origin main && \
+                            docker compose down && \
+                            docker rm -f \$(docker ps -a -q --filter "name=test-app") 2>/dev/null || true && \
+                            docker rmi -f \$(docker images -q test-app) 2>/dev/null || true && \
+                            docker compose up -d --build --force-recreate --no-deps
                         '
                     """
                 }
