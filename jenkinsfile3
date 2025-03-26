@@ -28,7 +28,7 @@ pipeline {
 
         stage('Build') {
             steps {
-                echo "Build con tag ${env.IS_TAG}"
+                echo "Build con tag ${env.IS_TAG} "
                 // Tu lógica de build aquí
             }
         }
